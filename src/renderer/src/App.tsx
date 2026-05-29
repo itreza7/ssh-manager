@@ -131,6 +131,10 @@ export default function App() {
   const restoredRef = useRef(false)
   const lastSavedRef = useRef('')
 
+  // Tab drag-to-reorder state.
+  const dragTabId = useRef<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
   const selectedConnId = activeTab && 'connectionId' in activeTab ? activeTab.connectionId : null
 
@@ -483,6 +487,21 @@ export default function App() {
     }
   }
 
+  // Reorder tabs by dropping the dragged tab onto another. The tabs-change
+  // effect persists the new order to the workspace automatically.
+  const moveTab = (fromId: string, toId: string): void => {
+    if (fromId === toId) return
+    setTabs((t) => {
+      const from = t.findIndex((x) => x.id === fromId)
+      const to = t.findIndex((x) => x.id === toId)
+      if (from < 0 || to < 0) return t
+      const next = t.slice()
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
   const onStatus = (sessionId: string, status: SessionStatus): void => {
     setTabs((t) =>
       t.map((x) => (x.kind === 'session' && x.id === sessionId ? { ...x, status } : x))
@@ -530,8 +549,33 @@ export default function App() {
               return (
                 <div
                   key={tab.id}
+                  draggable
                   onClick={() => setActiveTabId(tab.id)}
+                  onDragStart={(e) => {
+                    dragTabId.current = tab.id
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/plain', tab.id)
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    if (dragTabId.current && dragTabId.current !== tab.id) setDragOverId(tab.id)
+                  }}
+                  onDragLeave={() => setDragOverId((id) => (id === tab.id ? null : id))}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const from = dragTabId.current
+                    if (from) moveTab(from, tab.id)
+                    dragTabId.current = null
+                    setDragOverId(null)
+                  }}
+                  onDragEnd={() => {
+                    dragTabId.current = null
+                    setDragOverId(null)
+                  }}
                   className={`group flex cursor-pointer items-center gap-2 rounded-t-lg border-x border-t px-3 text-sm transition-colors ${
+                    dragOverId === tab.id ? 'ring-2 ring-inset ring-signal/70' : ''
+                  } ${
                     active
                       ? 'border-line bg-ink text-fg'
                       : 'border-transparent text-muted hover:bg-elevated/40 hover:text-fg/90'
