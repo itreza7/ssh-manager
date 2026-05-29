@@ -1,0 +1,17 @@
+appId: com.reza.sshmanager
+productName: SSH Manager
+directories:
+  buildResources: build
+  output: release
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - nsis
+    - portable
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
