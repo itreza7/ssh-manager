@@ -14,7 +14,13 @@ export const workspaceStore = {
       if (!existsSync(FILE())) return structuredClone(EMPTY_WORKSPACE)
       const raw = JSON.parse(readFileSync(FILE(), 'utf-8'))
       if (!raw || !Array.isArray(raw.tabs)) return structuredClone(EMPTY_WORKSPACE)
-      return { tabs: raw.tabs, active: typeof raw.active === 'number' ? raw.active : -1 }
+      return {
+        tabs: raw.tabs,
+        active: typeof raw.active === 'number' ? raw.active : -1,
+        // pass the tab-bar views through untouched; the renderer validates them on restore
+        ...(Array.isArray(raw.views) ? { views: raw.views } : {}),
+        ...(typeof raw.activeView === 'number' ? { activeView: raw.activeView } : {})
+      }
     } catch {
       return structuredClone(EMPTY_WORKSPACE)
     }

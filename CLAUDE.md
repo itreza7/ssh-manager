@@ -46,11 +46,28 @@ lives in the main process and is reached only through the curated `window.api` b
   `index.d.ts` declares the `window.api` global. Event subscriptions (`onData`, `onStatus`, …)
   return an unsubscribe function.
 - **Renderer** (`src/renderer/src/`) — React 19 + Tailwind v4 + xterm.js. `App.tsx` is the central
-  state container: the connections list, the tab model (a `Tab` discriminated union —
-  dashboard / session / settings / sftp / editor / tunnels), workspace persistence, password
-  resolution, and the host-key / password dialogs. Components for inactive tabs stay **mounted**
-  (toggled with CSS `visibility`) so live terminals, SFTP transfers, and unsaved edits survive tab
-  switches.
+  state container: the connections list, the **leaf** tab model (a `Tab` discriminated union —
+  dashboard / session / settings / sftp / editor / tunnels), the **`views`** that arrange those
+  leaves in the tab bar, workspace persistence, password resolution, and the host-key / password
+  dialogs. **Every** leaf component stays **mounted** so live terminals, SFTP transfers, and unsaved
+  edits survive — `wrapperStyle()` absolutely-positions each into its pane rect when the active view
+  shows it, else parks it full-bleed and hidden.
+- **Screen splitting (a split is its own tab)** — the tab bar is `views: View[]`, where
+  `View = { id; direction:'columns'|'rows'; panes:(string|null)[1..3]; sizes[]; focused }`. A 1-pane
+  view is an ordinary tab; a 2–3-pane view is a split that is *itself one tab* — joining leaves into a
+  split removes their standalone entries (each leaf belongs to **exactly one** view). `activeView` is
+  the on-screen tab; `activeTabId` (the focused leaf) is derived from its focused pane. `SplitControls`
+  (tab bar) splits/reorients the active tab; an empty pane shows `PanePicker` to pick a leaf to join
+  (→ `fillPane`, which pulls the leaf out of its old view); `PaneDividers` resizes; `PaneTools`
+  detaches a pane to its own tab or closes it. Mutators — `showLeaf` / `focusPane` / `applySplit` /
+  `ungroup` / `fillPane` / `detachPane` / `closePaneLeaf` / `removeTabs` / `closeView` / `moveView` —
+  must stay pure functional `setViews`/`setTabs` updaters; a `useEffect` keeps `activeViewId` valid,
+  and `shrinkView` drops a view's pane (dropping the view when no real pane remains). The `active`
+  prop a leaf receives means **focused** for terminals/editors (focus + Ctrl+S routing) but
+  **on-screen** for the file manager and tunnel manager (the latter self-hides on `!active`). xterm
+  refits via its own `ResizeObserver` and Monaco via `automaticLayout`, so a pane resize auto-refits.
+  Views persist in `workspace.json` as pane→tab-index references (+ `activeView`), rebuilt
+  best-effort on restore (vanished leaves drop, 1-real views collapse, orphans get their own view).
 - **Shared** (`src/shared/types.ts`) — the single source of truth for all cross-process types and
   the `DEFAULT_*` constants. Both tsconfig projects include it.
 

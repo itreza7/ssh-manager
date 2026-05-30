@@ -215,9 +215,27 @@ export interface PersistedTab {
   name?: string // editor: file name
 }
 
+/** Which way a split screen is divided. */
+export type SplitDirection = 'columns' | 'rows'
+
+/**
+ * A serialized tab-bar view: a single pane is a normal tab, 2–3 panes is a
+ * split that lives as its own tab. Pane entries index into `Workspace.tabs`
+ * (-1 = an empty pane). Restored best-effort: panes whose tab is gone are dropped.
+ */
+export interface PersistedView {
+  direction: SplitDirection
+  panes: number[]
+  sizes: number[] // fractions, same length as panes
+  focused: number // index of the focused pane
+}
+
 export interface Workspace {
   tabs: PersistedTab[]
-  active: number // index into tabs, or -1 for none
+  active: number // index into tabs of the focused leaf, or -1 for none
+  /** The tab-bar arrangement (one entry per visible tab; splits are multi-pane). */
+  views?: PersistedView[]
+  activeView?: number // index into views of the active tab
 }
 
 export const EMPTY_WORKSPACE: Workspace = { tabs: [], active: -1 }
